@@ -21,15 +21,18 @@
     "test:e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --projects \"./apps/api-gateway/test/jest-e2e.json\" \"./apps/auth-service/test/jest-e2e.json\""
   },
   "dependencies": {
+    "@fastify/static": "^10.1.10",
     "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.1.0",
     "@nestjs/core": "^12.0.1",
     "@nestjs/microservices": "^12.3.3",
     "@nestjs/observe": "^0.3.0",
     "@nestjs/platform-express": "^12.0.1",
+    "@nestjs/swagger": "^12.1.0",
     "kafkajs": "^2.2.4",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^12.0.0",
@@ -41,6 +44,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
     "@types/supertest": "^7.0.0",
+    "@types/swagger-ui-express": "^4.1.8",
     "fork-ts-checker-webpack-plugin": "^9.1.0",
     "jest": "^30.0.0",
     "oxlint": "^1.58.0",
