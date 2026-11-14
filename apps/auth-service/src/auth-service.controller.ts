@@ -1,25 +1,20 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Request, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthServiceService } from './auth-service.service';
-import { RegisterDto } from './dto/register.dto';
-
+import {RegisterDTO,LoginDTO} from "@app/common"
+import { AuthGuard } from '@nestjs/passport';
 @ApiTags('Auth')
 @Controller()
 export class AuthServiceController {
   constructor(private readonly authServiceService: AuthServiceService) {}
 
-  @Get()
-  @ApiOperation({ summary: 'Health check / welcome endpoint' })
-  @ApiResponse({ status: 200, description: 'Service is healthy' })
-  getHello(): string {
-    return this.authServiceService.getHello();
-  }
+ 
 
   @Post('register')
   @ApiOperation({
     summary: 'Simulate user registration and publish Kafka event',
   })
-  @ApiBody({ type: RegisterDto })
+  @ApiBody({ type: RegisterDTO,})
   @ApiResponse({
     status: 201,
     description: 'User registered and event published to Kafka',
@@ -29,7 +24,50 @@ export class AuthServiceController {
       },
     },
   })
-  register(@Body() body: RegisterDto) {
-    return this.authServiceService.simulateUserRegister(body.email);
+  register(@Body() body: RegisterDTO) {
+    console.log("--------------------------------------");
+    
+    console.log(body);
+    
+    console.log("--------------------------------------");
+    return this.authServiceService.register(body.email,body.name,body.password);
   }
+
+  
+
+  @Post('login')
+  @ApiOperation({
+    summary: 'Simulate user Login and publish Kafka event',
+  })
+  @ApiBody({ type: LoginDTO })
+  @ApiResponse({
+    status: 201,
+    description: 'User Login and event published to Kafka',
+    schema: {
+      example: {
+        message: 'User user@example.com Login event published successfully',
+      },
+    },
+  })
+  login(@Body() body: LoginDTO) {
+    return this.authServiceService.login(body.email,body.password);
+  }
+  @UseGuards(AuthGuard("jwt"))
+  @Get('profile')
+   @ApiOperation({
+    summary: 'User get his data Profile',
+  })
+   @ApiResponse({
+    status: 201,
+    description: 'User User get his data Profile',
+    schema: {
+      example: {
+        message: 'User user@example.com Get event published successfully',
+      },
+    },
+  })
+  getProfile(@Request() req:{user:{userId:string}} ){
+    return this.authServiceService.getProfile(req.user.userId)
+  }
+
 }

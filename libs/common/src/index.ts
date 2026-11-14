@@ -8,3 +8,6 @@ export * from './interfaces';
 export * from './utils';
 // Constants
 export * from './constants';
+
+// DTOs
+export * from './dto';

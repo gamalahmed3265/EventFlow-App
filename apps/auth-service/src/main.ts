@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AuthServiceModule } from './auth-service.module';
 
@@ -18,6 +18,14 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
 
+  // Enable Validation
+  app.useGlobalPipes(
+   new ValidationPipe({
+     whitelist:true,
+    transform:true,
+    forbidNonWhitelisted:true
+   }),
+  );
   await app.listen(port);
   Logger.log(`AuthService is running on http://localhost:${port}`, 'Bootstrap');
   Logger.log(
