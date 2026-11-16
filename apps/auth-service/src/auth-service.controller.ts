@@ -30,7 +30,7 @@ export class AuthServiceController {
     console.log(body);
     
     console.log("--------------------------------------");
-    return this.authServiceService.register(body.email,body.name,body.password);
+    return this.authServiceService.register(body.email, body.password, body.name);
   }
 
   

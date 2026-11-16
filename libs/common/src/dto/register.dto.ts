@@ -1,5 +1,5 @@
 
-import {IsEmail,IsNotEmpty, IsString, MaxLength} from "class-validator"
+import {IsEmail,IsNotEmpty, IsString, MinLength} from "class-validator"
 
 export class RegisterDTO{
     @IsEmail({},{message:"Please Provide a Valid Email"})
@@ -7,7 +7,7 @@ export class RegisterDTO{
     email:string;
 
     @IsString({message:"Password Must be a string"})
-    @MaxLength(6,{message:"Password must be at least 8 charachers long"})
+    @MinLength(8,{message:"Password must be at least 8 charachers long"})
     @IsNotEmpty({message:"Password is Reuired"})
     password:string;
 
