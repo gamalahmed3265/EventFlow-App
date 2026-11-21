@@ -19,7 +19,7 @@ import { CreateEventDto, UpdateEventDto } from '@app/common';
 import { EventsServiceService } from './events-service.service';
 
 @ApiTags('Events')
-@Controller('events')
+@Controller()
 export class EventsServiceController {
   constructor(private readonly eventsServiceService: EventsServiceService) {}
 
@@ -78,6 +78,25 @@ export class EventsServiceController {
   })
   findEventsByOrganizer(@Param('organizerId') organizerId: string) {
     return this.eventsServiceService.findEventsByOrganizer(organizerId);
+  }
+
+  @Get('my-events')
+  @ApiOperation({
+    summary: 'Get events created by the authenticated user',
+    description:
+      'Retrieves all events created by the user specified in the x-user-id header',
+  })
+  @ApiHeader({
+    name: 'x-user-id',
+    required: true,
+    description: 'User ID of the requester (UUID)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of events created by the authenticated user',
+  })
+  findMyEvents(@Headers('x-user-id') userId: string) {
+    return this.eventsServiceService.findMyEvents(userId);
   }
 
   @Get(':id')

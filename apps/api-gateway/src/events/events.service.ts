@@ -5,7 +5,7 @@ import { CreateEventDto, SERVICE_PORTS, UpdateEventDto } from '@app/common';
 
 @Injectable()
 export class EventsService {
-  private readonly eventsServiceUrl = `http://localhost:${SERVICE_PORTS.EVENT_SERVICE}/events`;
+  private readonly eventsServiceUrl = `http://localhost:${SERVICE_PORTS.EVENT_SERVICE}`;
 
   constructor(private readonly httpService: HttpService) {}
 
@@ -38,7 +38,24 @@ export class EventsService {
   async findEventsByOrganizer(organizerId: string) {
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.eventsServiceUrl}/organizer/${organizerId}`),
+        this.httpService.get(
+          `${this.eventsServiceUrl}/organizer/${organizerId}`,
+        ),
+      );
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  async findMyEvents(userId: string) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.eventsServiceUrl}/my-events`, {
+          headers: {
+            'x-user-id': userId,
+          },
+        }),
       );
       return response.data;
     } catch (error) {

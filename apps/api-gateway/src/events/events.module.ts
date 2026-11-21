@@ -4,7 +4,7 @@ import { EventsController } from './events.controller';
 import { EventsService } from './events.service';
 
 @Module({
-  imports: [HttpModule],
+  imports: [HttpModule,],
   controllers: [EventsController],
   providers: [EventsService],
   exports: [EventsService],

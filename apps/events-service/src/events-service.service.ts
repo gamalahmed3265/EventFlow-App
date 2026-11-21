@@ -40,6 +40,12 @@ export class EventsServiceService implements OnModuleInit {
   async findAllEvents() {
    return await this.dbService.db.select().from(events).where(eq(events.status, "PUBLISHED"));
   }
+  async findMyEvents(userId: string) {
+    return await this.dbService.db
+      .select()
+      .from(events)
+      .where(eq(events.organizerId, userId));
+  }
   async findEventById(eventId: string) {
     const [event] = await this.dbService.db
     .select()

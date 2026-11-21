@@ -19,6 +19,7 @@ describe('EventsServiceController', () => {
             publishEvent: jest.fn(),
             cancelEvent: jest.fn(),
             findEventsByOrganizer: jest.fn(),
+            findMyEvents: jest.fn(),
           },
         },
       ],
