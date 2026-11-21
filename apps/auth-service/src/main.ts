@@ -2,10 +2,10 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AuthServiceModule } from './auth-service.module';
+import { SERVICE_PORTS } from '@app/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AuthServiceModule);
-  const port = process.env.AUTH_SERVICE_PORT ?? process.env.PORT ?? 3001;
 
   // Swagger Documentation Setup
   const config = new DocumentBuilder()
@@ -26,10 +26,10 @@ async function bootstrap() {
     forbidNonWhitelisted:true
    }),
   );
-  await app.listen(port);
-  Logger.log(`AuthService is running on http://localhost:${port}`, 'Bootstrap');
+  await app.listen(SERVICE_PORTS.AUTH_SERVICE);
+  Logger.log(`AuthService is running on http://localhost:${SERVICE_PORTS.AUTH_SERVICE}`, 'Bootstrap');
   Logger.log(
-    `Swagger Docs available at http://localhost:${port}/docs`,
+    `Swagger Docs available at http://localhost:${SERVICE_PORTS.AUTH_SERVICE}/docs`,
     'Bootstrap',
   );
 }
