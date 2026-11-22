@@ -61,7 +61,8 @@ export class AuthServiceService implements OnModuleInit {
     // Emit a Kafka event for user registration
     this.kafkaClient.emit(KAFKA_TOPICS.USER_REGISTERED, {
       userId: newUser.id,
-      email,
+      email: newUser.email,
+      name: newUser.name,
       timestamp: new Date().toISOString(),
     });
     return {
