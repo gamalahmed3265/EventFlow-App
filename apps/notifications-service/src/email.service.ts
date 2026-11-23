@@ -1,22 +1,32 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+
 @Injectable()
 export class EmailService implements OnModuleInit {
-  private  transporter: nodemailer.Transporter;
+  private transporter: nodemailer.Transporter;
   private readonly logger = new Logger(EmailService.name);
+
   onModuleInit() {
+    const host = process.env.SMTP_HOST || 'localhost';
+    const port = Number(process.env.SMTP_PORT) || 1025;
+
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: Number(process.env.SMTP_PORT) === 465,
+      host,
+      port,
+      secure: port === 465,
     });
 
-    this.logger.log('email Service Initialized');
+    this.logger.log(`Email Service Initialized (${host}:${port})`);
   }
+
   async sendEmail(to: string, subject: string, html: string): Promise<void> {
     try {
+      const appName = process.env.APP_NAME || 'EventFlow';
+      const fromEmail =
+        process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@eventflow.com';
+
       await this.transporter.sendMail({
-        from: `"${process.env.APP_NAME}" <${process.env.SMTP_USER}>`,
+        from: `"${appName}" <${fromEmail}>`,
         to,
         subject,
         html,

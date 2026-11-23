@@ -65,6 +65,18 @@ services:
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
       DYNAMIC_CONFIG_ENABLED: "true"
 
+
+  # ==============================
+  # MailHog Email Testing
+  # ==============================
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: eventflowapp-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 # ==============================
 # Docker Volumes
 # ==============================

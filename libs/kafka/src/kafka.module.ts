@@ -18,7 +18,7 @@ export class KafkaModule {
             useFactory: (configService: ConfigService) => {
               const broker = configService.get<string>(
                 'KAFKA_BROKER',
-                'localhost:9093',
+                'localhost:9092',
               );
               const clientId = configService.get<string>(
                 'KAFKA_CLIENT_ID',
