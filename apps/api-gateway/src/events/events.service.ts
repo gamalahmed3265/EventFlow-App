@@ -1,7 +1,7 @@
 import { Injectable, HttpException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { CreateEventDto, SERVICE_PORTS, UpdateEventDto } from '@app/common';
+import { CreateEventDto, EventReponse, SERVICE_PORTS, UpdateEventDto } from '@app/common';
 
 @Injectable()
 export class EventsService {
@@ -9,10 +9,10 @@ export class EventsService {
 
   constructor(private readonly httpService: HttpService) {}
 
-  async createEvent(data: CreateEventDto, userId: string) {
+  async createEvent(data: CreateEventDto, userId: string):Promise<EventReponse> {
     try {
       const response = await firstValueFrom(
-        this.httpService.post(this.eventsServiceUrl, data, {
+        this.httpService.post<EventReponse>(this.eventsServiceUrl, data, {
           headers: {
             'x-user-id': userId,
           },
@@ -24,10 +24,10 @@ export class EventsService {
     }
   }
 
-  async findAllEvents() {
+  async findAllEvents():Promise<EventReponse[]> {
     try {
       const response = await firstValueFrom(
-        this.httpService.get(this.eventsServiceUrl),
+        this.httpService.get<EventReponse[]>(this.eventsServiceUrl),
       );
       return response.data;
     } catch (error) {
@@ -48,10 +48,10 @@ export class EventsService {
     }
   }
 
-  async findMyEvents(userId: string) {
+  async findMyEvents(userId: string):Promise<EventReponse[]> {
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.eventsServiceUrl}/my-events`, {
+        this.httpService.get<EventReponse[]>(`${this.eventsServiceUrl}/my-events`, {
           headers: {
             'x-user-id': userId,
           },
@@ -63,10 +63,10 @@ export class EventsService {
     }
   }
 
-  async findEventById(id: string) {
+  async findEventById(id: string):Promise<EventReponse> {
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.eventsServiceUrl}/${id}`),
+        this.httpService.get<EventReponse>(`${this.eventsServiceUrl}/${id}`),
       );
       return response.data;
     } catch (error) {
@@ -79,7 +79,7 @@ export class EventsService {
     data: UpdateEventDto,
     userId: string,
     userRole?: string,
-  ) {
+  ):Promise<EventReponse> {
     try {
       const headers: Record<string, string> = {
         'x-user-id': userId,
@@ -88,7 +88,7 @@ export class EventsService {
         headers['x-user-role'] = userRole;
       }
       const response = await firstValueFrom(
-        this.httpService.patch(`${this.eventsServiceUrl}/${id}`, data, {
+        this.httpService.patch<EventReponse>(`${this.eventsServiceUrl}/${id}`, data, {
           headers,
         }),
       );
@@ -98,7 +98,7 @@ export class EventsService {
     }
   }
 
-  async publishEvent(id: string, userId: string, userRole?: string) {
+  async publishEvent(id: string, userId: string, userRole?: string):Promise<EventReponse> {
     try {
       const headers: Record<string, string> = {
         'x-user-id': userId,
@@ -107,7 +107,7 @@ export class EventsService {
         headers['x-user-role'] = userRole;
       }
       const response = await firstValueFrom(
-        this.httpService.patch(
+        this.httpService.patch<EventReponse>(
           `${this.eventsServiceUrl}/${id}/publish`,
           {},
           {
@@ -121,7 +121,7 @@ export class EventsService {
     }
   }
 
-  async cancelEvent(id: string, userId: string, userRole?: string) {
+  async cancelEvent(id: string, userId: string, userRole?: string):Promise<EventReponse>{
     try {
       const headers: Record<string, string> = {
         'x-user-id': userId,
@@ -130,7 +130,7 @@ export class EventsService {
         headers['x-user-role'] = userRole;
       }
       const response = await firstValueFrom(
-        this.httpService.patch(
+        this.httpService.patch<EventReponse>(
           `${this.eventsServiceUrl}/${id}/cancel`,
           {},
           {

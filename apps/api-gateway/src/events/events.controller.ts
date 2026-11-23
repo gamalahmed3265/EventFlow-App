@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiBody,
   ApiHeader,
   ApiOperation,
@@ -128,6 +129,7 @@ export class EventsController {
   }
 
   @UseGuards(AuthGuard("jwt"))
+  @ApiBearerAuth()
   @Patch(':id')
   @ApiOperation({
     summary: 'Update an event',

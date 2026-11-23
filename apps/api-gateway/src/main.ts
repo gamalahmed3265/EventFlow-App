@@ -14,6 +14,7 @@ async function bootstrap() {
     .setTitle('API Gateway')
     .setDescription('API Gateway for EventFlow')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

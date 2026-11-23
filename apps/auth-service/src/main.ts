@@ -13,6 +13,7 @@ async function bootstrap() {
     .setDescription('Auth Service with Kafka Event Streaming')
     .setVersion('1.0')
     .addTag('Auth')
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

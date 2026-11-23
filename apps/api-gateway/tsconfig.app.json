@@ -5,6 +5,6 @@
     "rootDir": "../..",
     "outDir": "../../dist/apps/api-gateway"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../../libs/common/src/interfaces/response.interface.ts"],
   "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
 }

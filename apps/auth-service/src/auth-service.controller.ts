@@ -1,5 +1,11 @@
 import { Body, Controller, Get, Post, Request, UseGuards } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AuthServiceService } from './auth-service.service';
 import {RegisterDTO,LoginDTO} from "@app/common"
 import { AuthGuard } from '@nestjs/passport';
@@ -53,6 +59,7 @@ export class AuthServiceController {
     return this.authServiceService.login(body.email,body.password);
   }
   @UseGuards(AuthGuard("jwt"))
+  @ApiBearerAuth()
   @Get('profile')
    @ApiOperation({
     summary: 'User get his data Profile',

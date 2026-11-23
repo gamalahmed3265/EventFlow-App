@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Headers, Post } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiBody,
-  ApiHeader,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -51,14 +51,10 @@ export class AuthController {
   }
 
   @Get('profile')
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get user profile',
     description: 'Retrieves profile information using the Bearer JWT token',
-  })
-  @ApiHeader({
-    name: 'authorization',
-    required: true,
-    description: 'Bearer <token>',
   })
   @ApiResponse({
     status: 200,
