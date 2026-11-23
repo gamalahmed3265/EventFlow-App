@@ -31,11 +31,6 @@ export class AuthServiceController {
     },
   })
   register(@Body() body: RegisterDTO) {
-    console.log("--------------------------------------");
-    
-    console.log(body);
-    
-    console.log("--------------------------------------");
     return this.authServiceService.register(body.email, body.password, body.name);
   }
 

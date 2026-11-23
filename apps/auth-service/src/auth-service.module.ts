@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthServiceController } from './auth-service.controller';
 import { AuthServiceService } from './auth-service.service';
 import { KafkaModule } from '@app/kafka';
@@ -16,13 +16,22 @@ import { JwtStrategy } from './jwt-strategy';
     KafkaModule.register('auth-service-group'),
     DatabaseModule,
     PassportModule,
-    JwtModule.register({
-      secret:process.env.JWT_SECRET||"secretKey",
-      signOptions: { expiresIn: '1h' },
-    })
-
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret && process.env.NODE_ENV === 'production') {
+          throw new Error('JWT_SECRET environment variable is required in production');
+        }
+        return {
+          secret: secret || 'secretKey',
+          signOptions: { expiresIn: '1h' },
+        };
+      },
+    }),
   ],
   controllers: [AuthServiceController],
-  providers: [AuthServiceService,JwtStrategy],
+  providers: [AuthServiceService, JwtStrategy],
 })
-export class AuthServiceModule { }
+export class AuthServiceModule {}

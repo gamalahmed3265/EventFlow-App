@@ -4,7 +4,9 @@ import { firstValueFrom } from 'rxjs';
 import { AuthResponse, SERVICE_PORTS, UserProfileReponse } from '@app/common';
 @Injectable()
 export class AuthService {
-  private readonly authServiceUrl = `http://localhost:${SERVICE_PORTS.AUTH_SERVICE}`;
+  private readonly authServiceUrl =
+    process.env.AUTH_SERVICE_URL ||
+    `http://localhost:${SERVICE_PORTS.AUTH_SERVICE}`;
 
   constructor(private readonly httpService: HttpService) {}
   async register(data: { email: string; password: string; name: string }):Promise<UserProfileReponse> {

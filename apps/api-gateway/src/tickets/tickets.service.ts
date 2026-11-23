@@ -10,7 +10,9 @@ import {
 
 @Injectable()
 export class TicketsService {
-  private readonly ticketsServiceUrl = `http://localhost:${SERVICE_PORTS.TICKET_SERVICE}`;
+  private readonly ticketsServiceUrl =
+    process.env.TICKETS_SERVICE_URL ||
+    `http://localhost:${SERVICE_PORTS.TICKET_SERVICE}`;
 
   constructor(private readonly httpService: HttpService) {}
 

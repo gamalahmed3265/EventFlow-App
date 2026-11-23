@@ -11,7 +11,7 @@ import { ClientKafka } from '@nestjs/microservices';
 import { DatabaseService } from '@app/database/database.service';
 import { randomBytes } from 'crypto';
 import { PurchaseTicketDto } from '@app/common';
-import { events, tickets } from '@app/database';
+import { events, tickets, users } from '@app/database';
 import { and, eq, sql } from 'drizzle-orm';
 
 @Injectable()
@@ -32,63 +32,84 @@ export class TicketsServiceService implements OnModuleInit {
   async purchase(purchaseDto: PurchaseTicketDto, userId: string) {
     const { eventId, quantity } = purchaseDto;
 
-    // 1. Get event
-    const [event] = await this.dbService.db
-      .select()
-      .from(events)
-      .where(eq(events.id, eventId));
+    const { ticket, eventTitle, remainingTickets, userEmail } =
+      await this.dbService.db.transaction(async (tx) => {
+        // 1. Get event with row-level lock to prevent overselling race conditions
+        const [event] = await tx
+          .select()
+          .from(events)
+          .where(eq(events.id, eventId))
+          .for('update');
 
-    if (!event) {
-      throw new NotFoundException(`Event with ID ${eventId} not found`);
-    }
+        if (!event) {
+          throw new NotFoundException(`Event with ID ${eventId} not found`);
+        }
 
-    // 2. Check event status
-    if (event.status !== 'PUBLISHED') {
-      throw new BadRequestException(`Event is not published`);
-    }
+        // 2. Check event status
+        if (event.status !== 'PUBLISHED') {
+          throw new BadRequestException(`Event is not published`);
+        }
 
-    // 3. Get total sold tickets
-    const soldTickets = await this.dbService.db
-      .select({
-        total: sql<number>`
+        // 3. Get total sold tickets
+        const soldTickets = await tx
+          .select({
+            total: sql<number>`
         COALESCE(SUM(${tickets.quantity}), 0)
       `,
-      })
-      .from(tickets)
-      .where(
-        and(eq(tickets.eventId, eventId), eq(tickets.status, 'CONFIRMED')),
-      );
+          })
+          .from(tickets)
+          .where(
+            and(eq(tickets.eventId, eventId), eq(tickets.status, 'CONFIRMED')),
+          );
 
-    // 4. Calculate remaining tickets
-    const currentSold = Number(soldTickets[0]?.total || 0);
-    const remaining = event.capacity - currentSold;
+        // 4. Calculate remaining tickets
+        const currentSold = Number(soldTickets[0]?.total || 0);
+        const remaining = event.capacity - currentSold;
 
-    // 5. Check availability
-    if (quantity > remaining) {
-      throw new BadRequestException(`Only ${remaining} tickets remaining`);
-    }
+        // 5. Check availability
+        if (quantity > remaining) {
+          throw new BadRequestException(`Only ${remaining} tickets remaining`);
+        }
 
-    // 6. Calculate total price
-    const totalPrice = Number(event.price) * quantity;
+        // 6. Calculate total price
+        const totalPrice = Number(event.price) * quantity;
 
-    // 7. Insert ticket
-    const [ticket] = await this.dbService.db
-      .insert(tickets)
-      .values({
-        eventId,
-        userId,
-        quantity,
-        totalPrice,
-        ticketCode: this.generateTicketCode(),
-        status: 'CONFIRMED',
-      })
-      .returning();
+        // 7. Insert ticket
+        const [createdTicket] = await tx
+          .insert(tickets)
+          .values({
+            eventId,
+            userId,
+            quantity,
+            totalPrice,
+            ticketCode: this.generateTicketCode(),
+            status: 'CONFIRMED',
+          })
+          .returning();
 
-    // 8. Emit Kafka event
+        // 8. Fetch buyer email for notification event
+        const [buyer] = await tx
+          .select({ email: users.email })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+
+        return {
+          ticket: createdTicket,
+          eventTitle: event.title,
+          remainingTickets: remaining - quantity,
+          userEmail: buyer?.email,
+        };
+      });
+
+    // 9. Emit Kafka event with full details for notifications-service
     this.kafkaClient.emit(KAFKA_TOPICS.TICKET_PURCHASED, {
       ticketId: ticket.id,
+      ticketCode: ticket.ticketCode,
       eventId: ticket.eventId,
+      eventTitle,
       userId: ticket.userId,
+      email: userEmail,
       quantity: ticket.quantity,
       totalPrice: ticket.totalPrice,
       timestamp: new Date().toISOString(),
@@ -97,7 +118,7 @@ export class TicketsServiceService implements OnModuleInit {
     return {
       message: 'Tickets purchased successfully',
       ticket,
-      remainingTickets: remaining - quantity,
+      remainingTickets,
     };
   }
 
@@ -119,6 +140,7 @@ export class TicketsServiceService implements OnModuleInit {
       .innerJoin(events, eq(tickets.eventId, events.id))
       .where(eq(tickets.userId, userId));
   }
+
   async findOne(id: string, userId: string) {
     const [ticket] = await this.dbService.db
       .select({
@@ -138,6 +160,7 @@ export class TicketsServiceService implements OnModuleInit {
       .innerJoin(events, eq(tickets.eventId, events.id))
       .where(and(eq(tickets.userId, userId), eq(tickets.id, id)))
       .limit(1);
+
     if (!ticket) {
       throw new NotFoundException(`Ticket Not Found`);
     }
@@ -146,6 +169,7 @@ export class TicketsServiceService implements OnModuleInit {
     }
     return ticket;
   }
+
   async cancel(id: string, userId: string) {
     const [ticket] = await this.dbService.db
       .select()
@@ -165,16 +189,24 @@ export class TicketsServiceService implements OnModuleInit {
     if (ticket.status === 'CHECKED_IN') {
       throw new BadRequestException(`Ticket is already Checked in`);
     }
+
     const [cancelled] = await this.dbService.db
       .update(tickets)
-      .set({ status: 'CONFIRMED', updateAt: new Date() })
+      .set({ status: 'CANCELLED', updateAt: new Date() })
       .where(eq(tickets.id, id))
       .returning();
+
+    const [owner] = await this.dbService.db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
 
     this.kafkaClient.emit(KAFKA_TOPICS.TICKET_CANCELLED, {
       ticketId: cancelled.id,
       eventId: cancelled.eventId,
       userId: cancelled.userId,
+      email: owner?.email,
       timestamp: new Date().toISOString(),
     });
 
@@ -182,12 +214,13 @@ export class TicketsServiceService implements OnModuleInit {
       message: 'Ticket Cancelled successfully',
     };
   }
+
   async checkIn(ticketCode: string, organizerId: string) {
     const [ticket] = await this.dbService.db
       .select({
         id: tickets.id,
         status: tickets.status,
-        eventId: events.id,
+        eventId: tickets.eventId,
         quantity: tickets.quantity,
       })
       .from(tickets)
@@ -202,7 +235,8 @@ export class TicketsServiceService implements OnModuleInit {
       .from(events)
       .where(eq(events.id, ticket.eventId))
       .limit(1);
-    if (event.organizerId !== organizerId) {
+
+    if (!event || event.organizerId !== organizerId) {
       throw new ForbiddenException(
         `You are not organizer to check in this ticket`,
       );
@@ -215,7 +249,6 @@ export class TicketsServiceService implements OnModuleInit {
       .update(tickets)
       .set({
         status: 'CHECKED_IN',
-
         checkedInAt: new Date(),
         updateAt: new Date(),
       })
@@ -231,32 +264,35 @@ export class TicketsServiceService implements OnModuleInit {
 
     return {
       message: 'Ticket checked in successfully',
-      ticket:{
+      ticket: {
         id: checkIn.id,
         eventId: checkIn.eventId,
         userId: checkIn.userId,
         status: checkIn.status,
         quantity: checkIn.quantity,
-        checkedInAt:checkIn.checkedInAt
-        , ticketCode:checkIn.ticketCode
-      }
+        checkedInAt: checkIn.checkedInAt,
+        ticketCode: checkIn.ticketCode,
+      },
     };
   }
-  async findEventTickets(eventId:string,organizerId:string){
-     const [event] = await this.dbService.db
+
+  async findEventTickets(eventId: string, organizerId: string) {
+    const [event] = await this.dbService.db
       .select()
-       .from(events)
-      .where( eq(events.id, eventId))
+      .from(events)
+      .where(eq(events.id, eventId))
       .limit(1);
     if (!event) {
       throw new NotFoundException(`event Not Found`);
     }
     if (event.organizerId !== organizerId) {
-      throw new ForbiddenException(`You are not Authorized to check in this ticket`);
+      throw new ForbiddenException(
+        `You are not Authorized to check in this ticket`,
+      );
     }
     return this.dbService.db
       .select()
       .from(tickets)
-      .where(eq(tickets.eventId,event.id))
+      .where(eq(tickets.eventId, event.id));
   }
 }

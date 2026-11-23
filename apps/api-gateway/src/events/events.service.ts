@@ -5,7 +5,9 @@ import { CreateEventDto, EventReponse, SERVICE_PORTS, UpdateEventDto } from '@ap
 
 @Injectable()
 export class EventsService {
-  private readonly eventsServiceUrl = `http://localhost:${SERVICE_PORTS.EVENT_SERVICE}`;
+  private readonly eventsServiceUrl =
+    process.env.EVENTS_SERVICE_URL ||
+    `http://localhost:${SERVICE_PORTS.EVENT_SERVICE}`;
 
   constructor(private readonly httpService: HttpService) {}
 

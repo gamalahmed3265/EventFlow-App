@@ -192,7 +192,14 @@ async sendTicketCancelledEmail(data: {
   userId: string;
   email?: string;
 }): Promise<void> {
-  const email = data.email || 'user@example.com';
+  const { email } = data;
+
+  if (!email) {
+    this.logger.warn(
+      `Skipping ticket cancellation email: no email provided for user ${data.userId}`,
+    );
+    return;
+  }
 
   this.logger.log(
     `Sending ticket cancellation notice to ${email}`,
@@ -267,12 +274,21 @@ async sendEventCancelledEmail(data: {
   eventId: string;
   eventTitle?: string;
   organizerId: string;
+  email?: string;
 }): Promise<void> {
   const {
     eventId,
     eventTitle = 'Your Event',
     organizerId,
+    email,
   } = data;
+
+  if (!email) {
+    this.logger.warn(
+      `Skipping event cancellation email: no email provided for organizer ${organizerId}`,
+    );
+    return;
+  }
 
   const subject = `Event Cancelled - ${eventTitle}`;
 
@@ -348,7 +364,7 @@ async sendEventCancelledEmail(data: {
 
   try {
     await this.emailService.sendEmail(
-      data.organizerId,
+      email,
       subject,
       html,
     );

@@ -2,23 +2,35 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Param,
   Patch,
   Post,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiBody,
-  ApiHeader,
   ApiOperation,
   ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 import { CheckTicketDto, PurchaseTicketDto } from '@app/common';
 import { TicketsService } from './tickets.service';
 
+interface AuthenticatedRequest {
+  user: {
+    userId: string;
+    email?: string;
+    role?: string;
+  };
+}
+
 @ApiTags('Tickets')
+@ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'))
 @Controller('tickets')
 export class TicketsController {
   constructor(private readonly ticketsService: TicketsService) {}
@@ -27,12 +39,7 @@ export class TicketsController {
   @ApiOperation({
     summary: 'Purchase tickets for an event',
     description:
-      'Purchases one or more tickets for a published event via the Tickets Service',
-  })
-  @ApiHeader({
-    name: 'x-user-id',
-    required: true,
-    description: 'User ID of the buyer (UUID)',
+      'Purchases one or more tickets for a published event via the Tickets Service (requires JWT)',
   })
   @ApiBody({
     description: 'Ticket purchase details',
@@ -66,6 +73,10 @@ export class TicketsController {
       'Event is not published, not enough tickets remaining, or validation failed',
   })
   @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  @ApiResponse({
     status: 404,
     description: 'Event not found',
   })
@@ -75,32 +86,30 @@ export class TicketsController {
   })
   purchase(
     @Body() purchaseDto: PurchaseTicketDto,
-    @Headers('x-user-id') userId: string,
+    @Request() req: AuthenticatedRequest,
   ) {
-    return this.ticketsService.purchase(purchaseDto, userId);
+    return this.ticketsService.purchase(purchaseDto, req.user.userId);
   }
 
   @Get('my-tickets')
   @ApiOperation({
     summary: 'Get tickets of the authenticated user',
-    description:
-      'Retrieves all tickets purchased by the user specified in the x-user-id header',
-  })
-  @ApiHeader({
-    name: 'x-user-id',
-    required: true,
-    description: 'User ID of the requester (UUID)',
+    description: 'Retrieves all tickets purchased by the authenticated user',
   })
   @ApiResponse({
     status: 200,
     description: 'List of user tickets retrieved successfully',
   })
   @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  @ApiResponse({
     status: 503,
     description: 'Tickets service unavailable',
   })
-  findMyTickets(@Headers('x-user-id') userId: string) {
-    return this.ticketsService.findMyTickets(userId);
+  findMyTickets(@Request() req: AuthenticatedRequest) {
+    return this.ticketsService.findMyTickets(req.user.userId);
   }
 
   @Get('event/:eventId')
@@ -114,14 +123,13 @@ export class TicketsController {
     description: 'Event ID (UUID)',
     type: 'string',
   })
-  @ApiHeader({
-    name: 'x-user-id',
-    required: true,
-    description: 'Organizer User ID (UUID)',
-  })
   @ApiResponse({
     status: 200,
     description: 'List of tickets for the event retrieved successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
   })
   @ApiResponse({
     status: 403,
@@ -137,9 +145,9 @@ export class TicketsController {
   })
   findEventTickets(
     @Param('eventId') eventId: string,
-    @Headers('x-user-id') organizerId: string,
+    @Request() req: AuthenticatedRequest,
   ) {
-    return this.ticketsService.findEventTickets(eventId, organizerId);
+    return this.ticketsService.findEventTickets(eventId, req.user.userId);
   }
 
   @Post('check-in')
@@ -147,11 +155,6 @@ export class TicketsController {
     summary: 'Check in a ticket',
     description:
       'Marks a ticket as CHECKED_IN using its ticket code. Organizer only.',
-  })
-  @ApiHeader({
-    name: 'x-user-id',
-    required: true,
-    description: 'Organizer User ID (UUID)',
   })
   @ApiBody({
     description: 'Ticket check-in payload',
@@ -176,6 +179,10 @@ export class TicketsController {
     description: 'Ticket is already cancelled or validation failed',
   })
   @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  @ApiResponse({
     status: 403,
     description: 'Forbidden - requester is not the event organizer',
   })
@@ -189,9 +196,9 @@ export class TicketsController {
   })
   checkIn(
     @Body() checkTicketDto: CheckTicketDto,
-    @Headers('x-user-id') organizerId: string,
+    @Request() req: AuthenticatedRequest,
   ) {
-    return this.ticketsService.checkIn(checkTicketDto, organizerId);
+    return this.ticketsService.checkIn(checkTicketDto, req.user.userId);
   }
 
   @Get(':id')
@@ -205,14 +212,13 @@ export class TicketsController {
     description: 'Ticket ID (UUID)',
     type: 'string',
   })
-  @ApiHeader({
-    name: 'x-user-id',
-    required: true,
-    description: 'User ID of the ticket owner (UUID)',
-  })
   @ApiResponse({
     status: 200,
     description: 'Ticket retrieved successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
   })
   @ApiResponse({
     status: 403,
@@ -226,24 +232,19 @@ export class TicketsController {
     status: 503,
     description: 'Tickets service unavailable',
   })
-  findOne(@Param('id') id: string, @Headers('x-user-id') userId: string) {
-    return this.ticketsService.findOne(id, userId);
+  findOne(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.ticketsService.findOne(id, req.user.userId);
   }
 
   @Patch(':id/cancel')
   @ApiOperation({
     summary: 'Cancel a ticket',
-    description: 'Cancels a user ticket via the Tickets Service',
+    description: 'Cancels a user ticket via the Tickets Service (requires JWT)',
   })
   @ApiParam({
     name: 'id',
     description: 'Ticket ID (UUID)',
     type: 'string',
-  })
-  @ApiHeader({
-    name: 'x-user-id',
-    required: true,
-    description: 'User ID of the ticket owner (UUID)',
   })
   @ApiResponse({
     status: 200,
@@ -254,6 +255,10 @@ export class TicketsController {
     description: 'Ticket is already cancelled or already checked in',
   })
   @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  @ApiResponse({
     status: 403,
     description: 'Forbidden - ticket does not belong to user',
   })
@@ -265,8 +270,7 @@ export class TicketsController {
     status: 503,
     description: 'Tickets service unavailable',
   })
-  cancel(@Param('id') id: string, @Headers('x-user-id') userId: string) {
-    return this.ticketsService.cancel(id, userId);
+  cancel(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.ticketsService.cancel(id, req.user.userId);
   }
 }
-

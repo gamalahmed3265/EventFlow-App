@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { createObserveModule } from '@nestjs/observe';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
@@ -26,10 +26,22 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       serviceId: 'eventsflow-app',
     }),
     PassportModule,
-    JwtModule.register({
+    JwtModule.registerAsync({
       global: true,
-      secret: process.env.JWT_SECRET || 'secretKey',
-      signOptions: { expiresIn: '1h' },
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret && process.env.NODE_ENV === 'production') {
+          throw new Error(
+            'JWT_SECRET environment variable is required in production',
+          );
+        }
+        return {
+          secret: secret || 'secretKey',
+          signOptions: { expiresIn: '1h' },
+        };
+      },
     }),
     AuthModule,
     EventsModule,

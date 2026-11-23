@@ -59,6 +59,9 @@
     },
     {
       "path": "./apps/notifications-service/tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
     }
   ]
 }

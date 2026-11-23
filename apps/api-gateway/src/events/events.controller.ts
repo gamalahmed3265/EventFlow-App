@@ -2,39 +2,43 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Param,
   Patch,
   Post,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
-  ApiHeader,
   ApiOperation,
   ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { CreateEventDto, UpdateEventDto } from '@app/common';
 import { AuthGuard } from '@nestjs/passport';
+import { CreateEventDto, UpdateEventDto } from '@app/common';
 import { EventsService } from './events.service';
+
+interface AuthenticatedRequest {
+  user: {
+    userId: string;
+    email?: string;
+    role?: string;
+  };
+}
 
 @ApiTags('Events')
 @Controller('events')
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
   @Post()
   @ApiOperation({
     summary: 'Create a new event',
-    description: 'Creates a new event via the Events Service',
-  })
-  @ApiHeader({
-    name: 'x-user-id',
-    required: true,
-    description: 'Organizer User ID (UUID)',
+    description: 'Creates a new event via the Events Service (requires JWT)',
   })
   @ApiBody({ type: CreateEventDto })
   @ApiResponse({
@@ -46,14 +50,18 @@ export class EventsController {
     description: 'Validation failed / Invalid input data',
   })
   @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  @ApiResponse({
     status: 503,
     description: 'Events service unavailable',
   })
   createEvent(
     @Body() createEventDto: CreateEventDto,
-    @Headers('x-user-id') userId: string,
+    @Request() req: AuthenticatedRequest,
   ) {
-    return this.eventsService.createEvent(createEventDto, userId);
+    return this.eventsService.createEvent(createEventDto, req.user.userId);
   }
 
   @Get()
@@ -87,23 +95,24 @@ export class EventsController {
     return this.eventsService.findEventsByOrganizer(organizerId);
   }
 
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
   @Get('my-events')
   @ApiOperation({
     summary: 'Get events created by the authenticated user',
     description:
-      'Retrieves all events created by the user specified in the x-user-id header',
-  })
-  @ApiHeader({
-    name: 'x-user-id',
-    required: true,
-    description: 'User ID of the requester (UUID)',
+      'Retrieves all events created by the authenticated user (requires JWT)',
   })
   @ApiResponse({
     status: 200,
     description: 'List of events created by the authenticated user',
   })
-  findMyEvents(@Headers('x-user-id') userId: string) {
-    return this.eventsService.findMyEvents(userId);
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  findMyEvents(@Request() req: AuthenticatedRequest) {
+    return this.eventsService.findMyEvents(req.user.userId);
   }
 
   @Get(':id')
@@ -128,7 +137,7 @@ export class EventsController {
     return this.eventsService.findEventById(id);
   }
 
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @Patch(':id')
   @ApiOperation({
@@ -141,17 +150,6 @@ export class EventsController {
     description: 'Event ID (UUID)',
     type: 'string',
   })
-  @ApiHeader({
-    name: 'x-user-id',
-    required: true,
-    description: 'User ID of the requester (UUID)',
-  })
-  @ApiHeader({
-    name: 'x-user-role',
-    required: false,
-    description: 'Role of the user (e.g. USER, ADMIN)',
-    schema: { default: 'USER' },
-  })
   @ApiBody({ type: UpdateEventDto })
   @ApiResponse({
     status: 200,
@@ -162,90 +160,91 @@ export class EventsController {
     description: 'Validation failed / Invalid input data',
   })
   @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  @ApiResponse({
     status: 404,
-    description: 'Event not found or insufficient permissions',
+    description: 'Event not found',
   })
   updateEvent(
     @Param('id') id: string,
     @Body() updateEventDto: UpdateEventDto,
-    @Headers('x-user-id') userId: string,
-    @Headers('x-user-role') userRole?: string,
+    @Request() req: AuthenticatedRequest,
   ) {
-    return this.eventsService.updateEvent(id, updateEventDto, userId, userRole);
+    return this.eventsService.updateEvent(
+      id,
+      updateEventDto,
+      req.user.userId,
+      req.user.role,
+    );
   }
 
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
   @Patch(':id/publish')
   @ApiOperation({
     summary: 'Publish an event',
-    description: 'Sets event status to PUBLISHED',
+    description: 'Sets event status to PUBLISHED (requires JWT)',
   })
   @ApiParam({
     name: 'id',
     description: 'Event ID (UUID)',
     type: 'string',
-  })
-  @ApiHeader({
-    name: 'x-user-id',
-    required: true,
-    description: 'User ID of the requester (UUID)',
-  })
-  @ApiHeader({
-    name: 'x-user-role',
-    required: false,
-    description: 'Role of the user (e.g. USER, ADMIN)',
-    schema: { default: 'USER' },
   })
   @ApiResponse({
     status: 200,
     description: 'Event published successfully',
   })
   @ApiResponse({
-    status: 404,
-    description: 'Event not found or insufficient permissions',
+    status: 401,
+    description: 'Unauthorized',
   })
-  publishEvent(
-    @Param('id') id: string,
-    @Headers('x-user-id') userId: string,
-    @Headers('x-user-role') userRole?: string,
-  ) {
-    return this.eventsService.publishEvent(id, userId, userRole);
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Event not found',
+  })
+  publishEvent(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.eventsService.publishEvent(id, req.user.userId, req.user.role);
   }
 
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
   @Patch(':id/cancel')
   @ApiOperation({
     summary: 'Cancel an event',
-    description: 'Sets event status to CANCELED',
+    description: 'Sets event status to CANCELED (requires JWT)',
   })
   @ApiParam({
     name: 'id',
     description: 'Event ID (UUID)',
     type: 'string',
   })
-  @ApiHeader({
-    name: 'x-user-id',
-    required: true,
-    description: 'User ID of the requester (UUID)',
-  })
-  @ApiHeader({
-    name: 'x-user-role',
-    required: false,
-    description: 'Role of the user (e.g. USER, ADMIN)',
-    schema: { default: 'USER' },
-  })
   @ApiResponse({
     status: 200,
     description: 'Event canceled successfully',
   })
   @ApiResponse({
-    status: 404,
-    description: 'Event not found or insufficient permissions',
+    status: 401,
+    description: 'Unauthorized',
   })
-  cancelEvent(
-    @Param('id') id: string,
-    @Headers('x-user-id') userId: string,
-    @Headers('x-user-role') userRole?: string,
-  ) {
-    return this.eventsService.cancelEvent(id, userId, userRole);
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Event not found',
+  })
+  cancelEvent(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.eventsService.cancelEvent(id, req.user.userId, req.user.role);
   }
 }
-
